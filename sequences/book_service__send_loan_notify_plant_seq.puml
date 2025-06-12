@@ -1,0 +1,60 @@
+@startuml Notify User Due Date Sequence Diagram
+
+title Уведомление пользователя о наступлении срока сдачи книги
+
+actor "Планировщик задач" as Scheduler
+participant "API Gateway" as Gateway
+participant "NotificationService" as Notification
+participant "BookingService" as Booking
+participant "UserManagementService" as UMS
+participant "BookManagementService" as BMS
+participant "EmailService" as Email
+
+== Запрос отправки уведомлений ==
+Scheduler -> Gateway: POST /api/v1/notify\n{"type": "due_date_reminder", "daysAhead": 1}
+note right: Вызывается автоматически\nпо расписанию
+
+Gateway -> Notification: Обработать уведомления о сроках сдачи
+activate Notification
+
+== Поиск займов требующих уведомлений ==
+Notification -> Booking: Найти займы со сроком сдачи через 1 день
+activate Booking
+Booking -> Booking: Найти займы с due_date = current_date + 1
+Booking --> Notification: Список займов требующих уведомлений
+deactivate Booking
+
+alt Займы не найдены
+    Notification --> Gateway: 204 No Content
+    Gateway --> Scheduler: 204 - Нет займов для уведомлений
+else Займы найдены
+    == Обработка каждого займа ==
+    loop Для каждого займа
+        Notification -> UMS: Получить данные пользователя и настройки уведомлений
+        activate UMS
+        UMS --> Notification: UserData + NotificationPreferences
+        deactivate UMS
+        
+        Notification -> BMS: Получить информацию о книге
+        activate BMS
+        BMS --> Notification: BookDetails
+        deactivate BMS
+        
+        Notification -> Notification: Замаппить данные между сервисами:\n- Подготовить текст уведомления\n- Определить каналы отправки\n- Персонализировать сообщение
+        
+        == Отправка уведомлений ==
+        Notification -> Email: Отправить email (например) уведомление
+        activate Email
+        Email --> Notification: Email отправлен
+        deactivate Email
+        
+        Notification -> Notification: Записать лог отправки уведомления
+    end
+    
+    Notification --> Gateway: Статистика отправленных уведомлений
+    deactivate Notification
+    
+    Gateway --> Scheduler: 200 OK - Уведомления отправлены
+end
+
+@enduml

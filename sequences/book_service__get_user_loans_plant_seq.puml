@@ -1,0 +1,50 @@
+@startuml View User Loans Sequence Diagram
+
+title Просмотр полученных книг пользователем
+
+actor "Пользователь" as User
+participant "API Gateway" as Gateway
+participant "UserManagementService" as UMS
+participant "BookingService" as Booking
+participant "BookManagementService" as BMS
+
+== Запрос списка займов ==
+User -> Gateway: GET /api/v1/users/{userId}/loans?status=ACTIVE,RETURNED
+note right: JWT токен уже валидирован
+
+Gateway -> UMS: Валидация пользователя
+activate UMS
+UMS --> Gateway: UserData + разрешения
+deactivate UMS
+
+== Получение займов пользователя ==
+Gateway -> Booking: Получить займы пользователя
+activate Booking
+Booking -> Booking: Найти займы по фильтрам и пагинации
+
+alt Займы не найдены
+    Booking --> Gateway: 204 No Content
+    Gateway --> User: 204 No Content
+else Займы найдены
+    == Обогащение данными о книгах ==
+    loop Для каждого займа
+        Booking -> BMS: Получить информацию о книге
+        activate BMS
+        BMS --> Booking: BookDetails
+        deactivate BMS
+    end
+    
+    Booking -> Booking: Замаппить данные между сервисами:\n- Объединить займы с информацией о книгах\n- Рассчитать статусы и просрочки\n- Применить сортировку
+    
+    == Проверка просроченных книг ==
+    Booking -> Booking: Проверить наличие просроченных займов:\n- Найти займы с due_date < current_date\n- Подсчитать общее количество\n- Рассчитать общую сумму штрафов
+    
+    Booking --> Gateway: Обогащенный список займов + информация о просрочках
+    deactivate Booking
+    
+    == Формирование ответа ==
+    Gateway -> Gateway: Подготовить финальный ответ с метаданными\nи информацией о просроченных книгах
+    Gateway --> User: 200 OK - Список полученных книг + статус просрочек
+end
+
+@enduml

@@ -1,0 +1,22 @@
+@startuml
+
+actor "Сотрудник библиотеки" as Staff
+participant "API Gateway" as Gateway
+participant "Booking Service" as Booking
+
+autonumber
+== Получение предупреждения о просрочке ==
+Staff -> Gateway: GET /api/v1/loans/overdues?filter=userId
+note right: Запрос на получение списка пользователей с просроченными книгами
+Gateway -> Booking: Получить список пользователей с просроченными книгами
+activate Booking
+Booking -> Booking: Взять из Cache или View список пользователей с просрочкой
+Booking --> Gateway: Список пользователей с просрочкой
+deactivate Booking
+alt Пользователей с просрочкой нет
+    Gateway --> Staff: 204 No Content
+else Найдены пользователи с просрочкой
+    Gateway --> Staff: 200 OK - Список пользователей с просрочкой
+end
+
+@enduml

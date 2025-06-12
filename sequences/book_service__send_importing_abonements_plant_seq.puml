@@ -1,0 +1,82 @@
+@startuml Import Legacy Abonements Sequence Diagram
+
+title Загрузка legacy абонементов пользователей
+
+actor "Администратор" as Admin
+participant "API Gateway" as Gateway
+participant "ImportService" as Import
+participant "UserManagementService" as UMS
+participant "FileStorageService" as FileStorage
+
+== Загрузка файла с legacy данными ==
+Admin -> Gateway: POST /api/v1/imports/legacy/abonements\n+ multipart/form-data (file: CSV/JSON  + dryRun: true/false)
+
+Gateway -> Import: Обработать импорт legacy абонементов
+activate Import
+
+== Валидация и сохранение файла ==
+Import -> FileStorage: Сохранить загруженный файл
+activate FileStorage
+FileStorage --> Import: Файл сохранен
+deactivate FileStorage
+
+Import -> Import: Валидировать структуру файла
+
+alt Файл невалидный
+    Import --> Gateway: 400 Bad Request - Ошибки валидации
+    Gateway --> Admin: 400 - Неверный формат файла
+else Файл валидный
+    alt Если dryRun = true
+        Import -> FileStorage: Удалить файл
+        activate FileStorage
+        FileStorage --> Import: Файл удален
+        deactivate FileStorage
+        Import --> Gateway: 200 OK - Dry run выполнен успешно
+        Gateway --> Admin: 200 OK - Dry run завершен
+        deactivate Import
+    end
+    == Обработка записей ==
+    Import -> Import: Замаппить данные между сервисами:\n- Парсинг записей из файла\n- Нормализация legacy данных\n- Подготовка batch операций
+    
+    loop Для каждой записи абонемента
+        Import -> UMS: Проверить существование пользователя
+        activate UMS
+        
+        alt Пользователь не найден
+            UMS --> Import: 404 - Пользователь не найден
+            Import -> Import: Записать ошибку импорта
+        else Пользователь найден
+            Import -> UMS: Создать/обновить legacy абонемент
+            UMS -> UMS: Замаппить legacy данные в текущую модель:\n- Конвертировать поля\n- Установить статус LEGACY\n- Записать источник данных
+            
+            alt Абонемент уже существует
+                UMS --> Import: 409 - Дубликат записи
+                Import -> Import: Записать предупреждение
+            else Абонемент создан успешно
+                
+                UMS --> Import: 201 - Абонемент создан
+                Import -> Import: Увеличить счетчик успешных операций
+            end
+        end
+        deactivate UMS
+    end
+    
+    == Финализация импорта ==
+    Import -> Import: Подготовить отчет об импорте
+    
+    Import --> Gateway: 200 OK - Импорт завершен
+    deactivate Import
+    
+    Gateway --> Admin: 200 OK - Результаты импорта
+end
+
+== Получение статуса импорта ==
+note over Gateway: Альтернативный endpoint для\nотслеживания статуса
+
+Admin -> Gateway: GET /api/v1/imports/legacy/abonements/{importId}/status
+
+Gateway -> Import: Получить статус импорта
+Import --> Gateway: Детальный статус
+Gateway --> Admin: Информация о ходе импорта
+
+@enduml

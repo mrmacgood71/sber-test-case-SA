@@ -1,0 +1,62 @@
+@startuml Block User Abonement Sequence Diagram
+
+title Блокировка абонемента пользователя при большой просрочке работником сервиса
+
+actor "Работник библиотеки" as Staff
+participant "API Gateway" as Gateway
+participant "BookingService" as Booking
+participant "UserManagementService" as UMS
+participant "NotificationService" as Notification
+
+autonumber
+== Запуск проверки просроченных займов ==
+Staff -> Gateway: POST /api/v1/users/check-overdue-blocks
+
+Gateway -> Booking: Проверить и заблокировать пользователей с просрочкой
+activate Booking
+
+== Получение политики блокировки ==
+Booking -> Booking: Получить конфигурацию блокировки (например через Config Service)\n- overdueDaysThreshold: 30 дней
+
+== Поиск пользователей с критической просрочкой ==
+Booking -> Booking: Замаппить данные и найти займы с критической просрочкой
+
+alt Пользователей для блокировки нет
+    Booking --> Gateway: 200 OK - Нет пользователей для блокировки
+    Gateway --> Staff: 200 OK - processedUsersCount: 0, blockedUsersCount: 0
+else Найдены пользователи с критической просрочкой
+    
+    loop Для каждого пользователя с просрочкой
+        == Блокировка абонемента ==
+        Booking -> UMS: Заблокировать абонемент пользователя
+        activate UMS
+        
+        UMS -> UMS: Проверить и обновить статус абонемента:\n- Проверить текущий статус\n- Изменить статус на BLOCKED\n- Установить дату блокировки\n- Записать причину блокировки
+        
+        alt Абонемент уже заблокирован
+            UMS --> Booking: 409 Conflict - Уже заблокирован
+            Booking -> Booking: Записать в лог (пропустить)
+        else Абонемент успешно заблокирован
+            UMS --> Booking: 200 OK - Абонемент заблокирован
+            
+            == Отправка уведомления пользователю ==
+            Booking -> Notification: Отправить уведомление о блокировке
+            activate Notification
+            Notification -> Notification: Замаппить данные и отправить уведомление:\n- type: ABONEMENT_BLOCKED\n- причина: OVERDUE_LOANS\n- инструкции по разблокировке
+            Notification --> Booking: Уведомление отправлено
+            deactivate Notification
+            
+            Booking -> Booking: Увеличить счетчик заблокированных пользователей
+        end
+        deactivate UMS
+    end
+    
+    Booking -> Booking: Подготовить статистику обработки:\n- Общее количество проверенных пользователей\n- Количество заблокированных абонементов\n- Время выполнения операции
+    
+    Booking --> Gateway: 200 OK - Обработка завершена + статистика
+    deactivate Booking
+    
+    Gateway --> Staff: 200 OK - Результаты блокировки
+end
+
+@enduml

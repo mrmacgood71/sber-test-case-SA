@@ -1,0 +1,28 @@
+@startuml View User Abonement Status Sequence Diagram
+
+title Просмотр статуса абонемента пользователя
+
+actor "Сотрудник библиотеки" as Staff
+participant "API Gateway" as Gateway
+participant "UserManagementService" as UMS
+participant "BookingService" as Booking
+participant "BookManagementService" as BMS
+
+== Запрос статуса пользователя ==
+Staff -> Gateway: GET /api/v1/users/{userId}/abonements/{abonementId}
+note right: JWT токен уже валидирован,\nроль STAFF проверена
+
+Gateway -> UMS: Получить данные пользователя и абонемента
+activate UMS
+UMS -> UMS: Найти пользователя по userId
+alt Пользователь не найден
+    UMS --> Gateway: 404 Not Found
+    Gateway --> Staff: 404 User Not Found
+else Пользователь найден
+    UMS -> UMS: Получить данные абонемента пользователя
+    UMS -> UMS: Рассчитать статус абонемента:\n- Проверить срок действия\n- Проверить блокировки\n- Определить isExpiringSoon
+    UMS --> Gateway: AbonementData
+    Gateway --> Staff: 200 OK\n{ "abonementId": "string", \n"userId": "string", \n"username": "string", \n"fullName": "string", \n"status": "ACTIVE", \n"issueDate": "2025-06-11", \n"expiryDate": "2025-06-11", \n"maxBooksAllowed": 0, \n"currentBooksCount": 0, \n"isExpiringSoon": true }
+    deactivate UMS
+end
+@enduml

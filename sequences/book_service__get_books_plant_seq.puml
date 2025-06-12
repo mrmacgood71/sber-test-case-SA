@@ -1,0 +1,68 @@
+@startuml Get Available Books Sequence Diagram
+
+title Просмотр доступных книг пользователем
+
+actor "Пользователь" as User
+participant "API Gateway" as Gateway
+participant "UserManagementService" as UMS
+participant "BookManagementService" as BMS
+participant "Booking Service" as Booking
+participant "Corporate IAM Service" as IAM
+database "UserDatabase" as UserDB
+database "BookDatabase" as BookDB
+database "BookingDatabase" as BookingDB
+
+== Аутентификация и авторизация ==
+User -> Gateway: GET /api/v1/books?filter=...&page=1&size=10&order=asc
+note right: Bearer Token в заголовке
+
+Gateway -> IAM: Валидация JWT токена ([[file:///book_service__token_exchange_plant_seq.puml Работа с токенами]])
+activate IAM
+IAM -> IAM: Проверка подписи токена\nи срока действия
+IAM --> Gateway: Токен валиден + user_info
+deactivate IAM
+
+Gateway -> UMS: Получить информацию о пользователе
+activate UMS
+UMS -> UserDB: SELECT user, abonement WHERE user_id = ?
+activate UserDB
+UserDB --> UMS: User + Abonement данные
+deactivate UserDB
+
+UMS -> UMS: Проверить статус абонемента\n(ACTIVE, не просрочен)
+alt Abonement заблокирован или просрочен
+    UMS --> Gateway: 403 Forbidden
+    Gateway --> User: 403 Forbidden - Абонемент заблокирован
+else Abonement активен
+    UMS --> Gateway: User данные + права доступа
+    deactivate UMS
+    
+    == Получение списка книг ==
+    Gateway -> BMS: Получить список доступных книг\n(filter, pagination, order)
+    activate BMS
+    
+    BMS -> BookDB: SELECT books с фильтрацией и пагинацией
+    activate BookDB
+    note right: WHERE available_copies > 0\nOR overbooking_enabled = true
+    BookDB --> BMS: Список книг с базовой информацией
+    deactivate BookDB
+    
+    == Персонализация для пользователя ==
+    BMS -> Booking: Проверить существующие резервации пользователя
+    activate Booking
+    Booking -> BookingDB: SELECT reservations WHERE user_id = ?\nAND status IN (PENDING, CONFIRMED, READY_FOR_PICKUP)
+    activate BookingDB
+    BookingDB --> Booking: Активные резервации пользователя
+    deactivate BookingDB
+    Booking --> BMS: Список зарезервированных книг пользователем
+    deactivate Booking
+    
+    BMS -> BMS: Исключить уже зарезервированные\nпользователем книги из списка
+    
+    BMS --> Gateway: Список доступных книг с информацией:\n- Book details (title, authors, publisher)\n- Availability status\n- Available copies count\n- Overbooking info
+    deactivate BMS
+    
+    Gateway --> User: 200 OK\nJSON массив с книгами
+end
+
+@enduml

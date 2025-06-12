@@ -1,0 +1,108 @@
+@startuml BookService System Design
+
+scale 2
+
+namespace BookManagementSystem {
+    component "BookManagementService" as bms <<Сервис управления книгами>> {
+        database BookDatabase {
+
+        }
+    }
+
+    component "UserManagementService" as ums <<Сервис управления пользовательской информацией>> {
+        database UserDatabase {
+
+        }
+    }
+
+    component "ImportService" as import <<Сервис хранения книг>> {
+        database ImportDatabase {
+
+        }
+    }
+
+    component "Booking Service" as booking <<Сервис хранения книг>> {
+        database BookingDatabase {
+
+        }
+    }
+
+    component "Configurations Service" as configs <<Сервис хранения книг>> {
+        database ConfigurationDatabase {
+
+        }
+    }
+    component "Notification Service" as notifications <<Сервис уведомлений>> {
+        database NotificationDatabase {
+
+        }
+    }
+
+    component "API Gateway" as gateway <<API шлюз>> {
+        
+    }
+
+    component "File Storage Service" as s3 <<Сервис хранения файлов>> {
+        database FileStorageDatabase {
+
+        }
+    }
+    queue "MessageQueue" as mq <<Очередь сообщений>> {
+        
+    }
+
+' кол-во дней брони указывается на фронте
+    booking -d-> ums: Запрос на бронирование и получение книг, истории резерваций книг, просрочек и т. д. 
+    bms -d-> booking: Бронирование книг
+
+    import -d-> s3: Загрузка файлов иморта в хранилище файлов
+    ' под во
+    ' bms -d-> configs: Конфигурации сервиса
+    ' bms -d-> notifications: Уведомления о заказах
+
+    ' ums -d-> import: Управление импортом книг
+    ' ums -d-> booking: Управление бронированием книг
+    ' ums -d-> configs: Управление конфигурациями сервиса
+    ' ums -d-> notifications: Уведомления о заказах
+
+    ' booking -d-> mq: Отправка сообщений о бронировании книг
+    ' configs -d-> mq: Отправка сообщений о конфигурациях сервиса
+
+    import -d-> mq: Импорт старых абонементов пользователей
+    mq -d-> ums: Импорт старых абонементов пользователей
+    note right of mq
+        Очередь сообщений используется для асинхронной обработки
+        запросов на импорт старых абонементов пользователей 
+        и возможности отправки батчами
+    end note
+
+' шедулеру скажут заблочить все абонементы при просрочке книг по такой-то дате
+    ums --> configs: Определение правила для блокировки абонемента пользователя
+    configs -d-> notifications: Отправка конфигураций правил уведомлений сервиса
+
+    ums -u-> gateway: Запросы на управление пользователями
+    booking -u-> gateway: Запросы на управление бронированием книг
+    bms -u-> gateway: Запросы на управление книгами
+    import -u-> gateway: Запросы на управление импортом книг
+    notifications -u-> gateway: Запросы на управление уведомлениями
+    configs -u-> gateway: Запросы на управление конфигурациями сервиса
+    s3 -u-> gateway: Запросы на управление файлами
+
+}
+
+namespace ExternalSystems {
+    component "Corporate IAM Service" as iam <<Общая система авторизации Keycloak+AD>> {
+        
+    }
+    component "Logging Service" as logging <<Сервис логирования>> {
+        database LoggingDatabase {
+
+        }
+    }
+    gateway -d-> iam: Аутентификация и авторизация пользователей
+    gateway -d-> logging: Логирование запросов и ответов
+}
+
+
+
+@enduml

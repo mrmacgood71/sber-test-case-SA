@@ -1,0 +1,365 @@
+@startuml BookService Logical Data Model
+
+!define ENTITY class
+!define PK <<PK>>
+!define FK <<FK>>
+!define UK <<UK>>
+
+package "User Management Service" {
+    ENTITY User {
+        PK user_id: UUID
+        UK username: String
+        UK email: String
+        first_name: String
+        last_name: String
+        middle_name: String?
+        phone: String?
+        password_hash: String
+        registration_date: DateTime
+        is_active: Boolean
+        last_login: DateTime?
+        external_id: String
+        user_type: UserType
+        created_at: DateTime
+        updated_at: DateTime
+        --
+        + hasRole(role: Role): Boolean
+        + getPermissions(): List<Permission>
+        + isStaff(): Boolean
+        + isPatron(): Boolean
+        + canAccessAdminPanel(): Boolean
+    }
+    
+    ENTITY Role {
+        PK role_id: UUID
+        UK role_name: String
+        role_type: RoleType
+        description: String
+        is_active: Boolean
+        created_at: DateTime
+        --
+        + getPermissions(): List<Permission>
+        + isStaffRole(): Boolean
+    }
+    
+    ENTITY Permission {
+        PK permission_id: UUID
+        UK permission_name: String
+        permission_category: String
+        description: String
+        resource: String
+        action: String
+        created_at: DateTime
+    }
+    
+    ENTITY UserRole {
+        PK user_role_id: UUID
+        FK user_id: UUID
+        FK role_id: UUID
+        assigned_date: DateTime
+        assigned_by: UUID
+        is_active: Boolean
+        expiry_date: DateTime
+        --
+        + isActive(): Boolean
+        + isExpired(): Boolean
+    }
+    
+    ENTITY RolePermission {
+        PK role_permission_id: UUID
+        FK role_id: UUID
+        FK permission_id: UUID
+        granted_date: DateTime
+        granted_by: UUID
+    }
+    
+    enum UserType {
+        PATRON
+        STAFF
+        SYSTEM
+        EXTERNAL
+    }
+    
+    enum RoleType {
+        PATRON_ROLE
+        STAFF_ROLE
+        ADMIN_ROLE
+        SYSTEM_ROLE
+    }
+    
+    ENTITY Abonement {
+        PK abonement_id: UUID
+        FK user_id: UUID
+        status: AbonementStatus
+        issue_date: Date
+        expiry_date: Date
+        max_books_allowed: Integer
+        created_at: DateTime
+        updated_at: DateTime
+        --
+        + isActive(): Boolean
+        + isExpiringSoon(days: Integer): Boolean
+        + canIssueBook(): Boolean
+    }
+    
+    enum AbonementStatus {
+        ACTIVE
+        EXPIRED
+        BLOCKED
+        SUSPENDED
+    }
+}
+
+package "Book Management Service" {
+    ENTITY Book {
+        PK book_id: UUID
+        title: String
+        isbn: String
+        publication_date: Date
+        total_physical_copies: Integer
+        available_copies: Integer
+        reserved_copies: Integer
+        overbooking_enabled: Boolean
+        created_at: DateTime
+        updated_at: DateTime
+        --
+        + getAvailabilityStatus(): AvailabilityStatus
+        + canReserve(overbookingConfig: OverbookingConfig): Boolean
+        + calculateOverbookingLimit(): Integer
+    }
+    
+    ENTITY Author {
+        PK author_id: UUID
+        name: String
+        biography: Text
+        birth_date: Date
+        created_at: DateTime
+    }
+    
+    ENTITY Publisher {
+        PK publisher_id: UUID
+        name: String
+        address: String
+        contact_info: String
+        created_at: DateTime
+    }
+    
+    ENTITY BookAuthor {
+        PK book_author_id: UUID
+        FK book_id: UUID
+        FK author_id: UUID
+        author_role: String
+        created_at: DateTime
+    }
+    
+    enum AvailabilityStatus {
+        AVAILABLE
+        LIMITED
+        RESERVED_ONLY
+        UNAVAILABLE
+        OVERBOKED
+    }
+}
+
+package "Booking Service" {
+    ENTITY Reservation {
+        PK reservation_id: UUID
+        FK user_id: UUID
+        FK book_id: UUID
+        reservation_date: DateTime
+        expiry_date: DateTime
+        status: ReservationStatus
+        priority: Integer
+        is_overbooking: Boolean
+        created_at: DateTime
+        updated_at: DateTime
+        --
+        + isExpired(): Boolean
+        + canFulfill(): Boolean
+        + calculatePriority(): Integer
+    }
+    
+    ENTITY BookLoan {
+        PK loan_id: UUID
+        FK user_id: UUID
+        FK book_id: UUID
+        FK reservation_id: UUID
+        FK issued_by_staff_id: UUID
+        issue_date: Date
+        due_date: Date
+        return_date: Date
+        status: LoanStatus
+        renewal_count: Integer
+        fine_amount: Decimal
+        created_at: DateTime
+        updated_at: DateTime
+        --
+        + isOverdue(): Boolean
+        + getDaysOverdue(): Integer
+        + calculateFine(): Decimal
+        + canRenew(): Boolean
+    }
+    
+    enum ReservationStatus {
+        PENDING
+        CONFIRMED
+        READY_FOR_PICKUP
+        FULFILLED
+        EXPIRED
+        CANCELLED
+    }
+    
+    enum LoanStatus {
+        ACTIVE
+        RETURNED
+        OVERDUE
+        LOST
+        RENEWED
+    }
+}
+
+package "Configurations Service" {
+    ENTITY SystemSettings {
+        PK setting_id: UUID
+        setting_key: String
+        setting_value: String
+        data_type: String
+        description: String
+        is_active: Boolean
+        updated_at: DateTime
+        updated_by: UUID
+    }
+    
+    ENTITY OverbookingConfig {
+        PK config_id: UUID
+        FK book_id: UUID
+        overbooking_percentage: Decimal
+        max_overbooking_count: Integer
+        is_enabled: Boolean
+        priority_threshold: Integer
+        created_at: DateTime
+        updated_at: DateTime
+        --
+        + calculateOverbookingLimit(totalCopies: Integer): Integer
+        + isOverbookingAllowed(): Boolean
+    }
+    
+    ENTITY LoanPolicy {
+        PK policy_id: UUID
+        policy_name: String
+        loan_duration_days: Integer
+        max_renewals: Integer
+        fine_per_day: Decimal
+        grace_period_days: Integer
+        overdue_block_threshold_days: Integer
+        is_default: Boolean
+        created_at: DateTime
+    }
+}
+
+package "Notifications Service" {
+    ENTITY Notification {
+        PK notification_id: UUID
+        FK user_id: UUID
+        FK staff_id: UUID
+        notification_type: NotificationType
+        title: String
+        message: Text
+        status: NotificationStatus
+        scheduled_date: DateTime
+        sent_date: DateTime
+        created_at: DateTime
+        --
+        + send(): Boolean
+        + markAsRead(): void
+    }
+    
+    enum NotificationType {
+        DUE_DATE_REMINDER
+        OVERDUE_WARNING
+        RESERVATION_READY
+        ABONEMENT_EXPIRING
+        STAFF_OVERDUE_ALERT
+        SYSTEM_NOTIFICATION
+    }
+    
+    enum NotificationStatus {
+        PENDING
+        SENT
+        READ
+        FAILED
+    }
+}
+
+package "Manage Importing Data Service" {
+    ENTITY Import {
+        PK import_id: UUID
+        file_name: String
+        import_date: DateTime
+        imported_by: UUID
+        total_records: Integer
+        successful_records: Integer
+        failed_records: Integer
+        status: ImportStatus
+        error_log: Text
+        --
+        + processImport(): ImportResult
+        + validateData(): List<ValidationError>
+    }
+    
+    ENTITY AbonementData {
+        PK abonement_data_id: UUID
+        FK import_id: UUID
+        username: String
+        full_name: String
+        book_titles: Text
+        raw_data: JSON
+        processing_status: ProcessingStatus
+        created_at: DateTime
+        --
+        + parseBookData(): List<String>
+        + convertToModernFormat(): AbonementData
+    }
+    
+    enum ImportStatus {
+        PENDING
+        PROCESSING
+        COMPLETED
+        FAILED
+        PARTIALLY_COMPLETED
+    }
+    
+    enum ProcessingStatus {
+        PENDING
+        PROCESSED
+        FAILED
+        NEEDS_MANUAL_REVIEW
+    }
+}
+
+' Relationships
+User ||--o{ UserRole : has
+Role ||--o{ UserRole : assigned_to
+Role ||--o{ RolePermission : has
+Permission ||--o{ RolePermission : granted_via
+User ||--|| Abonement : has
+User ||--o{ Reservation : makes
+User ||--o{ BookLoan : has
+User ||--o{ Notification : receives
+
+Book ||--o{ BookAuthor : written_by
+Book ||--|| Publisher : published_by
+Book ||--o{ Reservation : reserved
+Book ||--o{ BookLoan : loaned
+Book ||--o| OverbookingConfig : configured_for
+
+BookAuthor }o--|| Author : references
+
+Reservation ||--o| BookLoan : fulfills
+User ||--o{ BookLoan : borrows
+User ||--o{ BookLoan : issues_as_staff
+
+SystemSettings ||--o{ LoanPolicy : configures
+LegacyImport ||--o{ LegacyAbonementData : contains
+
+@enduml

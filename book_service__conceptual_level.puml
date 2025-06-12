@@ -1,0 +1,48 @@
+@startuml BookService Improved Conceptual Model 
+
+namespace BookService {
+    entity Book <<Книга>> {
+    }
+    
+    entity Author <<Автор книги>> {
+    }
+    
+    entity Publisher <<Издатель>> {
+    }
+    
+    entity User <<Пользователь>>{
+    }
+    
+    entity Abonement <<Абонемент>> {
+    }
+    
+    entity Reservation <<Бронирование>>{
+    }
+    
+    entity BookIssue <<Заказ>>{
+    }
+    
+    entity Staff <<Сотрудник библиотеки>> {
+    }
+     
+    entity Notification <<Уведомление>> {
+    }
+
+
+    ' Связи
+    Book }o--o{ Author : Написана
+    Book }o--|| Publisher : Издана
+    User ||--|| Abonement : Имеет
+    
+    User ||--o{ Reservation : Делает
+    Book ||--o{ Reservation : Резервирует
+    
+    User ||--o{ BookIssue : Оформляет
+    Book ||--o{ BookIssue : Выдает
+    Staff ||--o{ BookIssue : Оформляет
+    
+    Reservation ||--o| BookIssue : Преобразуется в
+    Notification ||--o{ User : Отправляет
+    Notification ||--o{ BookIssue : Отправляет о заказе
+}
+@enduml

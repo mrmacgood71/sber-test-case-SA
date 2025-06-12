@@ -1,0 +1,50 @@
+@startuml View User Checkouts Sequence Diagram
+
+title Просмотр сроков сдачи книг пользователем
+
+actor "Пользователь" as User
+participant "API Gateway" as Gateway
+participant "UserManagementService" as UMS
+participant "BookingService" as Booking
+participant "BookManagementService" as BMS
+
+== Запрос сроков сдачи ==
+User -> Gateway: GET /api/v1/users/{userId}/checkouts
+note right: JWT токен уже валидирован
+
+Gateway -> UMS: Валидация пользователя
+activate UMS
+UMS --> Gateway: UserData + разрешения
+deactivate UMS
+
+== Получение активных займов ==
+Gateway -> Booking: Получить активные займы с датами возврата
+activate Booking
+Booking -> Booking: Найти активные займы пользователя\n(статус ACTIVE)
+
+alt Активных займов нет
+    Booking --> Gateway: 204 No Content
+    Gateway --> User: 204 No Content
+else Займы найдены
+    == Обогащение данными о книгах ==
+    loop Для каждого займа
+        Booking -> BMS: Получить базовую информацию о книге
+        activate BMS
+        BMS --> Booking: BookDetails
+        deactivate BMS
+    end
+    
+    Booking -> Booking: Замаппить данные между сервисами:\n- Объединить займы с книгами\n- Рассчитать дни до сдачи\n- Определить статус срочности
+    
+    == Расчет информации о сроках ==
+    Booking -> Booking: Рассчитать информацию о сроках сдачи:\n- Дни до возврата/просрочки\n- Группировка по срочности\n- Сортировка по дате возврата
+    
+    Booking --> Gateway: Список займов с информацией о сроках
+    deactivate Booking
+    
+    == Формирование ответа ==
+    Gateway -> Gateway: Подготовить ответ с группировкой\nпо срочности возврата
+    Gateway --> User: 200 OK - Информация о сроках сдачи
+end
+
+@enduml

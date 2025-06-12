@@ -1,0 +1,49 @@
+@startuml View User Reservations Sequence Diagram
+
+title Просмотр забронированных книг пользователем
+
+actor "Пользователь" as User
+participant "API Gateway" as Gateway
+participant "BookingService" as Booking
+participant "BookManagementService" as BMS
+
+autonumber
+== Запрос списка резерваций ==
+User -> Gateway: GET /api/v1/users/{userId}/reservations?status=PENDING,CONFIRMED
+note right: JWT токен содержит:\n- userId: {userId}\n- roles: ["USER"]\n- scope: ["read:reservations"]
+
+Gateway -> Booking: Получить резервации пользователя
+activate Booking
+
+== Получение списка резерваций пользователя ==
+Booking -> Booking: Замаппить данные и найти резервации:\n- Поиск по userId = {userId}\n- Фильтрация по статусу (PENDING, CONFIRMED)\n- Сортировка по дате создания\n- Применение пагинации
+
+alt Резервации не найдены
+    Booking --> Gateway: 204 No Content
+    Gateway --> User: 204 No Content - Нет активных резерваций
+else Резервации найдены
+    == Обогащение данных о книгах ==
+    loop Для каждой резервации
+        Booking -> BMS: Получить детальную информацию о книге
+        activate BMS
+        BMS -> BMS: Получить данные книги:\n- Основная информация\n- Авторы и издатель\n- Текущая доступность
+        BMS --> Booking: BookDetails с актуальной информацией
+        deactivate BMS
+        
+        Booking -> Booking: Обогатить резервацию данными:\n- Добавить информацию о книге\n- Рассчитать дни до истечения\n- Определить позицию в очереди\n- Проверить статус готовности к выдаче
+    end
+    
+    Booking --> Gateway: 200 OK - Список резерваций с полной информацией
+    deactivate Booking
+    
+    Gateway --> User: 200 OK - Список забронированных книг
+end
+
+== Альтернативный сценарий: Недостаточно прав ==
+note over Gateway: Если JWT не содержит нужных прав\nили userId не совпадает
+
+alt JWT не содержит нужных прав или userId не совпадает
+    Gateway --> User: 403 Forbidden - Недостаточно прав
+end
+
+@enduml

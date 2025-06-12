@@ -1,0 +1,57 @@
+@startuml Block User Abonement Sequence Diagram
+
+title Блокировка абонемента пользователя при большой просрочке с помощью шедулера
+
+actor "Планировщик задач" as Scheduler
+participant "API Gateway" as Gateway
+participant "UserManagementService" as UMS
+participant "BookingService" as Booking
+participant "NotificationService" as Notification
+
+autonumber
+== Проверка просроченных займов ==
+Scheduler -> Gateway: post /api/v1/users/check-overdue-blocks
+note right: Автоматическая проверка\nкаждый день в 09:00 UTC (например)
+Gateway -> ConfiguaraionService: Получить время для блокировки абонементов \n/api/v1/configs/abonement/blockPolicy
+activate ConfiguaraionService
+ConfiguaraionService -> Gateway: Ответ с временем блокировки (overdueDaysThreshold)
+Gateway -> Booking: Найти пользователей с критической просрочкой\n GET /api/v1/loans?overdueDaysThreshold={overdueDaysThreshold}&userId={userId}
+activate Booking
+Booking -> Booking: Найти займы с просрочкой > overdueDaysThreshold \nи статусом ACTIVE
+Booking -> Booking: Обнулить Cache или View или поставить статус в EXPIRED
+Booking -> Booking: Сформировать и сохранить список пользователей с просрочкой\n (View/Cache) с полем cacheStatus=ACTUAL
+Booking --> Gateway: Список пользователей для блокировки
+deactivate Booking
+deactivate ConfiguaraionService
+
+alt Пользователей для блокировки нет
+    Gateway --> Scheduler: 204 No Content
+else Найдены пользователи с критической просрочкой
+    == Обработка каждого пользователя ==
+    loop Для каждого пользователя
+        Gateway -> UMS: Заблокировать абонемент пользователя
+        activate UMS
+        
+        == Проверка текущего статуса ==
+        UMS -> UMS: Проверить текущий статус абонемента
+        
+        alt Абонемент уже заблокирован
+            UMS --> Gateway: 409 Conflict - Уже заблокирован
+        else Абонемент активен
+            == Блокировка абонемента ==
+            UMS -> UMS: Замаппить данные между сервисами:\n- Изменить статус на BLOCKED\n- Установить дату блокировки (updated_at)
+            
+            
+            == Отправка уведомления ==
+            UMS -> Notification: Отправить уведомление о блокировке /api/v1/notify?type=OVERDUE_WARNING
+            activate Notification
+            Notification --> UMS: Уведомление отправлено
+            deactivate Notification
+            
+            UMS --> Gateway: 200 OK - Абонемент заблокирован
+        end
+        deactivate UMS
+    end
+    
+    Gateway --> Scheduler: 200 OK - Обработка завершена
+end

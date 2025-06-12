@@ -1,0 +1,64 @@
+@startuml Reserve Book Sequence Diagram
+
+title Создание бронирования книги пользователем
+
+actor "Пользователь" as User
+participant "API Gateway" as Gateway
+participant "BookingService" as Booking
+participant "UserManagementService" as UMS
+participant "BookManagementService" as BMS
+
+autonumber
+== Инициация бронирования ==
+User -> Gateway: POST /api/v1/books/{bookId}/reserve
+note right: JWT токен уже валидирован
+
+Gateway -> Booking: Создать резервацию книги
+activate Booking
+
+== Проверка пользователя и абонемента ==
+Booking -> UMS: Получить данные пользователя и абонемента
+activate UMS
+UMS -> UMS: Проверить статус абонемента\n(ACTIVE, не заблокирован)
+UMS --> Booking: Информация о пользователе и абонементе
+deactivate UMS
+
+== Проверка доступности книги ==
+Booking -> BMS: Проверить доступность книги для резервации
+activate BMS
+BMS -> BMS: Получить информацию о книге\n(total_copies, available_copies, overbooking_enabled)
+
+BMS -> BMS: Рассчитать возможность резервации:\n- Есть доступные копии\n- Или разрешен овербукинг
+alt Книга недоступна для резервации
+    BMS --> Booking: 409 Conflict - Книга недоступна
+    Booking --> Gateway: 409 Conflict - Книга недоступна
+    Gateway --> User: 409 Conflict Error Response
+else Книга доступна
+    BMS --> Booking: BookAvailability + разрешение на резервацию
+    deactivate BMS
+
+    == Проверка существующих резерваций ==
+    Booking -> Booking: Проверить существующие резервации пользователя для этой книги
+    Booking -> Booking: Поиск активных резерваций\n(PENDING, CONFIRMED, READY_FOR_PICKUP)
+    alt Пользователь уже зарезервировал эту книгу
+        Booking --> Gateway: 409 Conflict - Уже зарезервировано
+        Gateway --> User: 409 Conflict Error Response
+    else Резервации нет
+        == Создание резервации ==
+        Booking -> Booking: Замаппить данные между сервисами:\n- Объединить данные пользователя и книги\n- Рассчитать срок действия (7 дней)\n- Определить приоритет\n- Установить статус PENDING
+        
+        Booking -> Booking: Создать новую резервацию:\n- Проверить, является ли овербукингом\n- Проверить, что период резервации не больше\n чем срок действия абонемента\n- Сохранить резервацию в БД
+        
+        Booking -> BMS: Обновить счетчики книги (reserved_copies++)
+        activate BMS
+        BMS --> Booking: Счетчики обновлены
+        deactivate BMS
+        
+        Booking --> Gateway: 201 Created - Резервация создана
+        deactivate Booking
+        
+        Gateway --> User: 201 Created - Reservation successfully created
+    end
+end
+
+@enduml

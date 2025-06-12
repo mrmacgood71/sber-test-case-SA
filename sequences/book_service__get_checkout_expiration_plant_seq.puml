@@ -1,0 +1,60 @@
+@startuml Abonement Expiry Warning Sequence Diagram
+
+title Предупреждение при выдаче книги пользователю с истекающим абонементом
+
+actor "Библиотекарь" as Librarian
+participant "API Gateway" as Gateway
+participant "BookingService" as Booking
+participant "UserManagementService" as UMS
+participant "BookManagementService" as BMS
+participant "NotificationService" as Notification
+
+autonumber
+== Запрос на выдачу книги ==
+Librarian -> Gateway: POST /api/v1/loans\n{"userId": "mrmacgood71", "bookId": "book-205", "reservationId": "res-12345", "dueDays": 14}
+note right: Библиотекарь выдает книгу\nпользователю
+
+Gateway -> Booking: Обработать выдачу книги
+activate Booking
+
+== Проверка абонемента пользователя ==
+Booking -> UMS: Проверить статус и срок действия абонемента
+activate UMS
+UMS -> UMS: Замаппить данные и проверить абонемент:\n- Получить активный абонемент\n- Проверить срок действия\n- Рассчитать дни до истечения
+UMS --> Booking: Данные абонемента + статус
+deactivate UMS
+
+== Проверка доступности книги ==
+Booking -> BMS: Проверить доступность книги
+activate BMS
+BMS --> Booking: Информация о книге + статус доступности
+deactivate BMS
+
+alt Абонемент истекает в течение 7 дней
+    == Создание займа с предупреждением ==
+    Booking -> Booking: Создать займ с флагом предупреждения:\n- Записать займ в БД\n- Установить флаг abonement_expiry_warning\n- Рассчитать даты займа
+    
+    
+    == Отправка предупреждения ==
+    Booking --> Gateway: 409 Confict - Предупреждение об истечении абонемента
+    Gateway --> Librarian: 409 Confict - Предупреждение об истечении абонемента
+    alt Библиотекарь подтверждает выдачу
+        note right: Библиотекарь может продолжить выдачу книги
+        Librarian -> Gateway: POST /api/v1/notify?type=ABONEMENT_EXPIRY_WARNING
+        ... Переход к шагу 12 ...
+        note right: Библиотекарь может проигнорировать предупреждение и продолжить выдачу книги
+
+    
+else Абонемент действителен (более 7 дней)
+    == Обычная выдача книги ==
+    Booking -> Booking: Создать обычный займ без предупреждений
+    Booking --> Gateway: 201 Created - Книга выдана
+    Gateway --> Librarian: 201 - Книга успешно выдана
+    
+else Абонемент уже истек
+    == Отказ в выдаче ==
+    Booking --> Gateway: 403 Forbidden - Абонемент истек
+    Gateway --> Librarian: 403 - Невозможно выдать книгу (истекший абонемент)
+end
+
+@enduml

@@ -1,0 +1,1433 @@
+openapi: 3.0.4
+
+info:
+  title: Book Service API
+  version: 1.0.0
+  description: API for managing books in a library system
+servers:
+  - url: https://devUrl/api/v1
+  - url: https://testUrl/api/v1
+  - url: https://predProdUrl/api/v1
+  - url: https://prodUrl/api/v1
+tags:
+  - name: Books
+    description: Operations related to books in the library
+  - name: NotificationService
+    description: Operations related to notifications
+  - name: BookingService
+    description: Operations related to book loans and reservations
+  - name: Legacy
+    description: Operations for legacy data import
+  - name: System
+    description: System configuration operations
+
+paths:
+  # Existing endpoints (Books, Abonements, Notifications)
+  /books:
+    get:
+      tags:
+        - Books
+      parameters:
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            default: book.bookId
+          description: Facet filter for books by parameter
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of books per page for pagination
+        - name: order
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [asc, desc]
+          description: Sort order for the books (asc or desc)
+      summary: Get all books available to current user
+      operationId: getAllBooks
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: A list of books
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Book'
+        '204':
+          description: No books found
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403': 
+          description: Forbidden - абонемент заблокирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                errorCode: "BOOK_ACCESS_ERROR"
+                errorMessage: "Невозможно получить книги, так как ваш абонемент заблокирован. Пожалуйста, свяжитесь с библиотекой для получения дополнительной информации."
+        '500':  
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /books/{bookId}:
+    get:
+      tags:
+        - Books
+      summary: Get book details by ID
+      operationId: getBookById
+      security:
+        - BearerToken: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the book
+      responses:
+        '200':
+          description: Book details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Book'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /books/{bookId}/reserve:
+    post:
+      tags:
+        - Books
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the book to reserve
+      summary: Reserve a book for pickup
+      operationId: reserveBook
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Book reserved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Book not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict - book unavailable or user limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # User's reserved books
+  /users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Получить информацию о пользователе
+      operationId: getUserStatus
+      security:
+        - BearerToken: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the user
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [SHORT, FULL]
+          description: Тип информации о пользователе (SHORT - краткая информация, FULL - полная информация)
+      responses:
+        '200':
+          description: Информацииия о пользователе успешно получена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatus'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/{userId}/reservations:
+    get:
+      tags:
+        - Users
+      summary: Get current user's book reservations
+      operationId: getMyReservations
+      security:
+        - BearerToken: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, CONFIRMED, READY_FOR_PICKUP, FULFILLED, EXPIRED, CANCELLED]
+          description: Filter by reservation status
+      responses:
+        '200':
+          description: List of user's reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/{userId}/abonements:
+    get:
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, EXPIRED, BLOCKED, SUSPENDED]
+          description: Filter by abonement status
+      tags:
+        - Users
+      summary: Get abonements (filtered based on user role)
+      operationId: getAllAbonements
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: A list of abonements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Abonement'
+        '204':
+          description: No abonements found
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Staff access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':  
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /user/{userId}/abonements/{abonementId}:
+    put:
+      tags:
+        - Users
+      summary: Update user's abonement
+      operationId: updateAbonement
+      security:
+        - BearerToken: []
+      parameters:
+        - name: abonementId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                block:
+                  type: boolean
+      responses:
+        '200':
+          description: Abonement unblocked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Abonement'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Staff access required
+    get:
+      tags:
+        - Users
+      summary: Get user's abonement by ID
+      operationId: getAbonementById
+      security:
+        - BearerToken: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the user
+        - name: abonementId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the abonement
+      responses:
+        '200':
+          description: User's abonement details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Abonement'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Abonement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  # Полученные пользователем книги
+  /users/{userId}/loans:
+    get:
+      tags:
+        - Users
+      summary: Get current user's book loans
+      operationId: getMyLoans
+      security:
+        - BearerToken: []
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, RETURNED, OVERDUE, LOST, RENEWED]
+          description: Filter by loan status
+      responses:
+        '200':
+          description: List of user's loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookLoan'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /users/{userId}/checkouts:
+    get:
+      tags:
+        - Users
+      summary: Get user's checkout loans (Staff only)
+      operationId: getUsercheckoutsLoans
+      description: User ID to check for checkouts loans
+      security:
+        - BearerToken: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [ACTIVE, RETURNED, OVERDUE, LOST, RENEWED]
+          description: Filter by loan status
+      responses:
+        '200':
+          description: List of user's checkouts loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckoutLoan'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Staff access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  #Loans endpoint for staff
+  /reservations:
+    get:
+      tags:
+        - BookingService
+      summary: Get all book reservations (Staff only)
+      operationId: getAllReservations
+      security:
+        - BearerToken: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of reservations per page for pagination
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter reservations by user ID
+      responses:
+        '200':
+          description: A list of book reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reservation'
+        '204':
+          description: No reservations found
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Staff access required
+    post:
+      tags:
+        - BookingService
+      summary: Create a new book reservation
+      operationId: createReservation
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: User making the reservation
+                bookId:
+                  type: string
+                  description: Book being reserved
+                priority:
+                  type: integer
+                  description: Priority level for the reservation (optional)
+                isOverbooking:
+                  type: boolean
+                  description: If true, allows overbooking of the book (optional)
+              required:
+                - userId
+                - bookId
+      responses:
+        '201':
+          description: Reservation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reservation'
+        '400':
+          description: Bad request - book unavailable, user limit exceeded, etc.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Staff access required
+  /loans:
+    get:
+      tags:
+        - BookingService
+      summary: Get all book loans (Staff only)
+      operationId: getAllLoans
+      security:
+        - BearerToken: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of loans per page for pagination
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter loans by user ID
+      responses:
+        '200':
+          description: A list of book loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookLoan'
+        '204':
+          description: No loans found
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Staff access required
+    post:
+      tags:
+        - BookingService
+      summary: Выдать книгу пользователю
+      operationId: issueBook
+      parameters:
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [IGNORE_ABONEMENT_EXPIRY_WARNING, DEFAULT]
+          description: Настройка поведения при выдаче книги пользователю с истекающим абонементом
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: User receiving the book
+                bookId:
+                  type: string
+                  description: Book being issued
+                reservationId:
+                  type: string
+                  description: Optional - reservation being fulfilled
+                dueDays:
+                  type: integer
+                  description: Number of days until due (optional, uses default if not provided)
+              required:
+                - userId
+                - bookId
+                - reservationId
+      responses:
+        '201':
+          description: Book issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookLoan'
+        '400':
+          description: Bad request - user blocked, book unavailable, etc.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Staff access required
+        '409':
+          description: Conflict - abonement expiring soon warning
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      warning:
+                        type: boolean
+                        example: true
+                      warningMessage:
+                        type: string
+                        example: "User's abonement expires in 3 days"
+  /loans/overdues:
+    get:
+      tags:
+        - BookingService
+      summary: Получить все книги и пользователей с просрочкой
+      operationId: getAllLoans
+      security:
+        - BearerToken: []
+      parameters:
+        - name: overdueDaysThreshold
+          in: query
+          required: false
+          schema:
+            type: integer
+            description: Filter loans that are overdue by this many days
+        - name: filter
+          in: query
+          required: false
+          schema:
+            type: string
+            default: userId
+          description: Facet filter for loans by parameter
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+          description: Number of loans per page for pagination
+        - name: userId
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter loans by user ID
+        - name: refreshCache
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: If true, refresh overdue cache before fetching loans
+      responses:
+        '200':
+          description: A list of book loans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BookLoan'
+        '204':
+          description: No loans found
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - Staff access required
+  /loans/{loanId}/return:
+    post:
+      tags:
+        - BookingService
+      summary: Process book return
+      operationId: returnBook
+      security:
+        - BearerToken: []
+      parameters:
+        - name: loanId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Book returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookLoan'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Staff access required
+        '404':
+          description: Loan not found
+
+  # Legacy data import
+  /imports/legacy/abonements:
+    post:
+      tags:
+        - Legacy
+      summary: Import legacy abonement data from Excel file
+      operationId: importLegacyData
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Excel file containing legacy abonement data
+                dryRun:
+                  type: boolean
+                  default: false
+                  description: If true, validate data without importing
+              required:
+                - file
+      responses:
+        '200':
+          description: Import completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '400':
+          description: Invalid file format or data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Staff access required
+
+  /imports/legacy/{importId}/status:
+    get:
+      tags:
+        - Legacy
+      summary: Get status of legacy data import
+      operationId: getImportStatus
+      security:
+        - BearerToken: []
+      parameters:
+        - name: importId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Import status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportResult'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Staff access required
+        '404':
+          description: Import not found
+
+  # System configuration for overbooking
+  /configs/books/{bookId}/overbooking:
+    put:
+      tags:
+        - System
+      summary: Configure overbooking settings for a book
+      operationId: configureOverbooking
+      security:
+        - BearerToken: []
+      parameters:
+        - name: bookId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OverbookingConfig'
+      responses:
+        '200':
+          description: Overbooking configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OverbookingConfig'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+        '404':
+          description: Book not found
+  # Настройка кол-во дней для блокировки абонемента пользователя при просрочке
+  /configs/abonement/blockPolicy:
+    put:
+      tags:
+        - System
+      summary: Configure abonement block policy
+      operationId: configureAbonementBlockPolicy
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                overdueDaysThreshold:
+                  type: integer
+                  description: Количество дней просрочки, после которых абонемент будет заблокирован
+              required:
+                - overdueDaysThreshold
+      responses:
+        '200':
+          description: Abonement block policy updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overdueDaysThreshold:
+                    type: integer
+                    description: Количество дней просрочки, после которых абонемент будет заблокирован
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+    get:
+      tags:
+        - System
+      summary: Get current abonement block policy
+      operationId: getAbonementBlockPolicy
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Abonement block policy retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overdueDaysThreshold:
+                    type: integer
+                    description: Количество дней просрочки, после которых абонемент будет заблокирован
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+  # Уведомление сотрудников о большой просрочке по даче книг, со стороны пользователя
+  /configs/notifications/notificationPolicy:
+    put:
+      tags:
+        - System
+      summary: Configure notification policy for overdue loans
+      operationId: configureNotificationPolicy
+      security:
+        - BearerToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                overdueDaysThreshold:
+                  type: integer
+                  description: Количество дней просрочки, после которых будет отправлено уведомление сотрудникам
+              required:
+                - overdueDaysThreshold
+      responses:
+        '200':
+          description: Notification policy updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overdueDaysThreshold:
+                    type: integer
+                    description: Количество дней просрочки, после которых будет отправлено уведомление сотрудникам
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+    get:
+      tags:
+        - System
+      summary: Get current notification policy for overdue loans
+      operationId: getNotificationPolicy
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Notification policy retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overdueDaysThreshold:
+                    type: integer
+                    description: Количество дней просрочки, после которых будет отправлено уведомление сотрудникам
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+  # Уведомить пользователя о наступлении срока сдачи книги
+  # Предупреждение, при выдаче книги пользователю с подходящем к концу сроком действия абонемента
+  /notify:
+    post:
+      tags:
+        - NotificationService
+      summary: Send notification to user
+      operationId: sendNotification
+      security:
+        - BearerToken: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [DUE_DATE_REMINDER, OVERDUE_WARNING, RESERVATION_READY, ABONEMENT_EXPIRING, STAFF_OVERDUE_ALERT, SYSTEM_NOTIFICATION]
+                userId:
+                  type: string
+                  description: User to notify (optional for staff notifications)
+                bookId:
+                  type: string
+                  description: Related book (optional)
+                loanId:
+                  type: string
+                  description: Related loan (optional)
+                message:
+                  type: string
+                  description: Custom message (optional)
+                scheduledDate:
+                  type: string
+                  format: date-time
+                  description: When to send notification (optional, defaults to now)
+              required:
+                - type
+      responses:
+        '200':
+          description: Notification sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User or resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/check-overdue-blocks:
+    post:
+      tags:
+        - Scheduler
+      summary: Check overdue loans and block users if necessary
+      operationId: checkOverdueBlocks
+      security:
+        - BearerToken: []
+      responses:
+        '200':
+          description: Overdue check completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processedUsersCount:
+                    type: integer
+                    description: Number of users processed
+                  blockedUsersCount:
+                    type: integer
+                    description: Number of users blocked due to overdue loans
+        '401':
+          description: Unauthorized
+        '403':
+          description: Forbidden - Admin access required
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: Error code for programmatic handling
+        errorMessage:
+          type: string
+          description: Error message detailing the issue
+        timestamp:
+          type: string
+          format: date-time
+        path:
+          type: string
+          description: API path that generated the error
+
+    Book:
+      type: object
+      properties:
+        bookId:
+          type: string
+          description: Unique identifier for the book
+        title:
+          type: string
+          description: Title of the book
+        isbn:
+          type: string
+          description: ISBN number of the book
+        publicationDate:
+          type: string
+          format: date
+          description: Publication date of the book
+        authors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Author'
+          description: List of book authors
+        publisher:
+          $ref: '#/components/schemas/Publisher'
+        totalCopies:
+          type: integer
+          description: Total number of copies available in the library
+        availableCopies:
+          type: integer
+          description: Number of copies currently available for borrowing
+        reservedCopies:
+          type: integer
+          description: Number of copies currently reserved
+        overbookingEnabled:
+          type: boolean
+          description: Indicates if overbooking is enabled for this book
+        availabilityStatus:
+          type: string
+          enum: [AVAILABLE, LIMITED, RESERVED_ONLY, UNAVAILABLE, OVERBOOKED]
+          description: Current availability status
+
+    Author:
+      type: object
+      properties:
+        authorId:
+          type: string
+        name:
+          type: string
+        biography:
+          type: string
+
+    Publisher:
+      type: object
+      properties:
+        publisherId:
+          type: string
+        name:
+          type: string
+        address:
+          type: string
+
+    Abonement:
+      type: object
+      properties:
+        abonementId:
+          type: string
+          description: Unique identifier for the abonement
+        userId:
+          type: string
+          description: Unique identifier for the user who owns the abonement
+        username:
+          type: string
+          description: Username of the abonement holder
+        fullName:
+          type: string
+          description: Full name of the abonement holder
+        status: 
+          type: string
+          enum: [ACTIVE, EXPIRED, BLOCKED, SUSPENDED]
+          description: Current status of the abonement
+        issueDate: 
+          type: string
+          format: date
+          description: Date when the abonement was issued
+        expiryDate: 
+          type: string
+          format: date
+          description: Date when the abonement expires
+        maxBooksAllowed: 
+          type: integer
+          description: Maximum number of books allowed to be borrowed
+        currentBooksCount:
+          type: integer
+          description: Number of books currently borrowed
+        isExpiringSoon:
+          type: boolean
+          description: True if abonement expires within warning period
+
+    Reservation:
+      type: object
+      properties:
+        reservationId:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        book:
+          $ref: '#/components/schemas/Book'
+        reservationDate:
+          type: string
+          format: date-time
+        expiryDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [PENDING, CONFIRMED, READY_FOR_PICKUP, FULFILLED, EXPIRED, CANCELLED]
+        priority:
+          type: integer
+        isOverbooking:
+          type: boolean
+
+    BookLoan:
+      type: object
+      properties:
+        loanId:
+          type: string
+        userId:
+          type: string
+        bookId:
+          type: string
+        book:
+          $ref: '#/components/schemas/Book'
+        reservationId:
+          type: string
+        issuedByStaffId:
+          type: string
+        issueDate:
+          type: string
+          format: date
+        dueDate:
+          type: string
+          format: date
+        returnDate:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [ACTIVE, RETURNED, OVERDUE, LOST, RENEWED]
+        renewalCount:
+          type: integer
+        fineAmount:
+          type: number
+          format: double
+        daysOverdue:
+          type: integer
+        isOverdue:
+          type: boolean
+
+    UserStatus:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        abonement:
+          $ref: '#/components/schemas/Abonement'
+        activeLoans:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookLoan'
+        activeReservations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Reservation'
+        overdueLoans:
+          type: array
+          items:
+            $ref: '#/components/schemas/BookLoan'
+        totalFines:
+          type: number
+          format: double
+
+    OverdueNotification:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        bookTitle:
+          type: string
+        loanId:
+          type: string
+        daysOverdue:
+          type: integer
+        fineAmount:
+          type: number
+        dueDate:
+          type: string
+          format: date
+        urgencyLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH, CRITICAL]
+
+    ImportResult:
+      type: object
+      properties:
+        importId:
+          type: string
+        fileName:
+          type: string
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED, PARTIALLY_COMPLETED]
+        totalRecords:
+          type: integer
+        successfulRecords:
+          type: integer
+        failedRecords:
+          type: integer
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              row:
+                type: integer
+              error:
+                type: string
+              data:
+                type: object
+
+    OverbookingConfig:
+      type: object
+      properties:
+        bookId:
+          type: string
+        overbookingPercentage:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Percentage of total copies that can be overbooked
+        maxOverbookingCount:
+          type: integer
+          minimum: 0
+          description: Maximum absolute number of overbookings allowed
+        isEnabled:
+          type: boolean
+        priorityThreshold:
+          type: integer
+          description: Priority level required for overbooking
+
+    NotificationResponse:
+      type: object
+      properties:
+        notificationId:
+          type: string
+        status:
+          type: string
+          enum: [SENT, SCHEDULED, FAILED]
+        message:
+          type: string
+        scheduledDate:
+          type: string
+          format: date-time
+    CheckoutLoan:
+      type: object
+      properties:
+        loanId:
+          type: string
+        bookId:
+          type: string
+        reservationId:
+          type: string
+        checkoutDate:
+          type: string
+          format: date-time
+        dueDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [ACTIVE, RETURNED, OVERDUE, LOST, RENEWED]
+        fineAmount:
+          type: number
+          format: double
+  securitySchemes:
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.example.com/oauth/authorize
+          tokenUrl: https://auth.example.com/oauth/token
+          scopes:
+            read: Grants read access to the API
+            write: Grants write access to the API
+            admin: Grants administrative access
+    BearerToken:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Use a valid JWT token for authentication
+
+security:
+  - BearerToken: []

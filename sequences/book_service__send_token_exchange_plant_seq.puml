@@ -1,0 +1,46 @@
+@startuml Authentication Sequence Diagram
+
+title Процесс аутентификации и авторизации
+
+actor "Пользователь" as User
+participant "API Gateway" as Gateway
+participant "Corporate IAM Service" as IAM
+participant "UserManagementService" as UMS
+database "UserDatabase" as UserDB
+
+== Валидация JWT токена ==
+note over User, Gateway: Любой запрос с Bearer Token в заголовке
+Gateway -> IAM: Валидация JWT токена
+activate IAM
+note right of IAM: POST /auth/validate\n{\n  "token": "eyJhbGciOiJSUzI...",\n  "requiredScopes": ["read", "write"]\n}
+IAM -> IAM: Проверка подписи токена,\nсрока действия и scopes
+alt Токен валиден
+    IAM --> Gateway: 200 OK\n{\n  "valid": true,\n  "user_id": "550e8400-e29b-41d4-a716-446655440000",\n  "username": "mrmacgood71",\n  "email": "user@example.com",\n  "scopes": ["read", "write"],\n  "expires_at": "2025-06-11T16:30:01Z"\n}
+else Токен невалиден
+    IAM --> Gateway: 401 Unauthorized\n{\n  "errorCode": "INVALID_TOKEN",\n  "errorMessage": "Token is expired or invalid"\n}
+    Gateway --> User: 401 Unauthorized
+    note over User: Процесс завершен
+end
+deactivate IAM
+
+== Получение информации о пользователе ==
+Gateway -> UMS: Получить пользователя и абонемент
+activate UMS
+note right of UMS: GET /api/v1/users/550e8400-e29b-41d4-a716-446655440000?type=SHORT
+UMS -> UserDB: SELECT user, abonement\nWHERE user_id = '550e8400-e29b-41d4-a716-446655440000'
+activate UserDB
+UserDB --> UMS: User + Abonement данные
+deactivate UserDB
+
+alt Абонемент активен
+    UMS --> Gateway: 200 OK\n{\n  "userId": "550e8400-e29b-41d4-a716-446655440000",\n  "username": "mrmacgood71",\n  "fullName": "Иван Иванов",\n  "abonement": {\n    "abonementId": "ab123456-...",\n    "status": "ACTIVE",\n    "expiryDate": "2025-12-31",\n    "maxBooksAllowed": 5,\n    "currentBooksCount": 2,\n    "isExpiringSoon": false\n  }\n}
+else Абонемент неактивен
+    UMS --> Gateway: 403 Forbidden\n{\n  "errorCode": "ABONEMENT_BLOCKED",\n  "errorMessage": "User abonement is blocked or expired"\n}
+    Gateway --> User: 403 Forbidden
+    note over User: Процесс завершен
+end
+deactivate UMS
+
+note over Gateway: Пользователь авторизован\nи может выполнять операции
+
+@enduml
