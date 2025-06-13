@@ -39,7 +39,7 @@
 
 <details><summary>Схема компонентов системы </summary>
 
-![book_service__system_design_luk6dinda](/assets/book_service__system_design.png)
+![book_service__system_design](/assets/book_service__system_design.png)
 </details>
 
 ## Требования к системе
@@ -1292,7 +1292,7 @@ Endpoint   | /api/v1/notify
 
 ![alt text](/assets/sequences/book_service__send_loan_notify_plant_seq.png)
 
-<details> <summary>Логика работы </sumdmary>
+<details> <summary>Логика работы </summary>
 
 ##### Логика работы метода уведомления о наступлении срока сдачи книги
 

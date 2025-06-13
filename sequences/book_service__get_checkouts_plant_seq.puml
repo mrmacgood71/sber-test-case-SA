@@ -1,50 +1,42 @@
 @startuml View User Checkouts Sequence Diagram
 
-title Просмотр сроков сдачи книг пользователем
+title Просмотр сроков сдачи книг пользователем (Staff Only)
 
-actor "Пользователь" as User
+actor "Работник библиотеки" as Staff
 participant "API Gateway" as Gateway
-participant "UserManagementService" as UMS
 participant "BookingService" as Booking
 participant "BookManagementService" as BMS
 
-== Запрос сроков сдачи ==
-User -> Gateway: GET /api/v1/users/{userId}/checkouts
-note right: JWT токен уже валидирован
+autonumber
+== Запрос сроков сдачи пользователя ==
+Staff -> Gateway: GET /api/v1/users/{userId}/checkouts?status=ACTIVE
 
-Gateway -> UMS: Валидация пользователя
-activate UMS
-UMS --> Gateway: UserData + разрешения
-deactivate UMS
-
-== Получение активных займов ==
-Gateway -> Booking: Получить активные займы с датами возврата
+Gateway -> Booking: Получить checkout займы пользователя
 activate Booking
-Booking -> Booking: Найти активные займы пользователя\n(статус ACTIVE)
 
-alt Активных займов нет
+== Получение активных checkout займов ==
+Booking -> Booking: Замаппить данные и найти checkout займы:\n- Поиск по userId = {userId}\n- Фильтрация по статусу (ACTIVE, OVERDUE)\n- Сортировка по дате возврата (asc)\n- Применение пагинации
+
+alt Активных checkout займов нет
     Booking --> Gateway: 204 No Content
-    Gateway --> User: 204 No Content
-else Займы найдены
+    Gateway --> Staff: 204 No Content - Нет активных займов
+else Checkout займы найдены
     == Обогащение данными о книгах ==
-    loop Для каждого займа
-        Booking -> BMS: Получить базовую информацию о книге
+    loop Для каждого checkout займа
+        Booking -> BMS: Получить детальную информацию о книге
         activate BMS
-        BMS --> Booking: BookDetails
+        BMS -> BMS: Получить данные книги:\n- Основная информация\n- Авторы и издатель\n- Текущая доступность
+        BMS --> Booking: BookDetails с актуальной информацией
         deactivate BMS
+        
+        Booking -> Booking: Обогатить checkout займ данными:\n- Добавить информацию о книге\n- Рассчитать дни до/после срока возврата\n- Определить уровень срочности\n- Вычислить сумму штрафа (если есть)
     end
+    Booking -> Booking: Проанализировать и сгруппировать займы
     
-    Booking -> Booking: Замаппить данные между сервисами:\n- Объединить займы с книгами\n- Рассчитать дни до сдачи\n- Определить статус срочности
-    
-    == Расчет информации о сроках ==
-    Booking -> Booking: Рассчитать информацию о сроках сдачи:\n- Дни до возврата/просрочки\n- Группировка по срочности\n- Сортировка по дате возврата
-    
-    Booking --> Gateway: Список займов с информацией о сроках
+    Booking --> Gateway: 200 OK - Checkout займы с информацией о сроках
     deactivate Booking
     
-    == Формирование ответа ==
-    Gateway -> Gateway: Подготовить ответ с группировкой\nпо срочности возврата
-    Gateway --> User: 200 OK - Информация о сроках сдачи
+    Gateway --> Staff: 200 OK - Информация о сроках сдачи пользователя
 end
 
 @enduml
