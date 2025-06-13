@@ -3,30 +3,30 @@ openapi: 3.0.4
 info:
   title: Book Service API
   version: 1.0.0
-  description: API for managing books in a library system
+  description: API for managing bookManagementService in a library ConfigurationsService
 servers:
   - url: https://devUrl/api/v1
   - url: https://testUrl/api/v1
   - url: https://predProdUrl/api/v1
   - url: https://prodUrl/api/v1
 tags:
-  - name: Books
-    description: Operations related to books in the library
+  - name: BookManagementService
+    description: Сервис для работы с книгами
   - name: NotificationService
-    description: Operations related to notifications
+    description: Сервис работы с уведомлениями
   - name: BookingService
-    description: Operations related to book loans and reservations
-  - name: Legacy
-    description: Operations for legacy data import
-  - name: System
-    description: System configuration operations
+    description: Сервис для работы с бронированием и выдачей книг
+  - name: ImportService
+    description: Сервис для работы с импортом устаревших данных
+  - name: ConfigurationsService
+    description: Сервис для работы с конфигурациями
 
 paths:
-  # Existing endpoints (Books, Abonements, Notifications)
+  # Existing endpoints (BookManagementService, Abonements, Notifications)
   /books:
     get:
       tags:
-        - Books
+        - BookManagementService
       parameters:
         - name: filter
           in: query
@@ -34,75 +34,75 @@ paths:
           schema:
             type: string
             default: book.bookId
-          description: Facet filter for books by parameter
+          description: Фильтр для поиска книг по параметру
         - name: page
           in: query
           required: false
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
+          description: Номер страницы для пагинации
         - name: size
           in: query
           required: false
           schema:
             type: integer
             default: 10
-          description: Number of books per page for pagination
+          description: Количество книг на странице для пагинации
         - name: order
           in: query
           required: false
           schema:
             type: string
             enum: [asc, desc]
-          description: Sort order for the books (asc or desc)
-      summary: Get all books available to current user
-      operationId: getAllBooks
+          description: Порядок сортировки книг (asc - по возрастанию, desc - по убыванию)
+      summary: Найти все книги
+      operationId: getAllBookManagementService
       security:
         - BearerToken: []
       responses:
-        '200':
-          description: A list of books
+        "200":
+          description: Список книг успешно получен
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Book'
-        '204':
-          description: No books found
-        '400':
+                  $ref: "#/components/schemas/Book"
+        "204":
+          description: Список книг пуст
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403': 
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
           description: Forbidden - абонемент заблокирован
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
               example:
                 errorCode: "BOOK_ACCESS_ERROR"
                 errorMessage: "Невозможно получить книги, так как ваш абонемент заблокирован. Пожалуйста, свяжитесь с библиотекой для получения дополнительной информации."
-        '500':  
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /books/{bookId}:
     get:
       tags:
-        - Books
-      summary: Get book details by ID
+        - BookManagementService
+      summary: Найти книгу по ID
       operationId: getBookById
       security:
         - BearerToken: []
@@ -112,74 +112,74 @@ paths:
           required: true
           schema:
             type: string
-          description: Unique identifier for the book
+          description: Идентификатор книги
       responses:
-        '200':
-          description: Book details retrieved successfully
+        "200":
+          description: Информация о книге успешно получена
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Book'
-        '401':
+                $ref: "#/components/schemas/Book"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Book not found
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Книга не найдена
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /books/{bookId}/reserve:
     post:
       tags:
-        - Books
+        - BookManagementService
       parameters:
         - name: bookId
           in: path
           required: true
           schema:
             type: string
-          description: Unique identifier for the book to reserve
-      summary: Reserve a book for pickup
+          description: Идентификатор книги для бронирования
+      summary: Забронировать книгу
       operationId: reserveBook
       security:
         - BearerToken: []
       responses:
-        '200':
-          description: Book reserved successfully
+        "200":
+          description: Книга успешно забронирована
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Reservation'
-        '400':
+                $ref: "#/components/schemas/Reservation"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Book not found
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Книга не найдена
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: Conflict - book unavailable or user limit exceeded
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Conflict - бронирование не удалось из-за ограничений
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
-  # User's reserved books
+  # User's reserved bookManagementService
   /users/{userId}:
     get:
       tags:
@@ -194,7 +194,7 @@ paths:
           required: true
           schema:
             type: string
-          description: Unique identifier for the user
+          description: Идентификатор пользователя
         - name: type
           in: query
           required: false
@@ -203,29 +203,29 @@ paths:
             enum: [SHORT, FULL]
           description: Тип информации о пользователе (SHORT - краткая информация, FULL - полная информация)
       responses:
-        '200':
+        "200":
           description: Информацииия о пользователе успешно получена
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserStatus'
-        '401':
+                $ref: "#/components/schemas/UserStatus"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: User not found
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Пользователь не найден
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /users/{userId}/reservations:
     get:
       tags:
         - Users
-      summary: Get current user's book reservations
+      summary: Получить текущие бронирования пользователя
       operationId: getMyReservations
       security:
         - BearerToken: []
@@ -235,23 +235,31 @@ paths:
           required: false
           schema:
             type: string
-            enum: [PENDING, CONFIRMED, READY_FOR_PICKUP, FULFILLED, EXPIRED, CANCELLED]
-          description: Filter by reservation status
+            enum:
+              [
+                PENDING,
+                CONFIRMED,
+                READY_FOR_PICKUP,
+                FULFILLED,
+                EXPIRED,
+                CANCELLED,
+              ]
+          description: Фильтр по статусу бронирования
       responses:
-        '200':
-          description: List of user's reservations
+        "200":
+          description: Список текущих бронирований пользователя
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Reservation'
-        '401':
+                  $ref: "#/components/schemas/Reservation"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /users/{userId}/abonements:
     get:
       parameters:
@@ -261,53 +269,53 @@ paths:
           schema:
             type: string
             enum: [ACTIVE, EXPIRED, BLOCKED, SUSPENDED]
-          description: Filter by abonement status
+          description: Фильтр по статусу абонемента
       tags:
         - Users
-      summary: Get abonements (filtered based on user role)
+      summary: Список абонементов пользователя
       operationId: getAllAbonements
       security:
         - BearerToken: []
       responses:
-        '200':
-          description: A list of abonements
+        "200":
+          description: Список абонементов пользователя успешно получен
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Abonement'
-        '204':
-          description: No abonements found
-        '400':
+                  $ref: "#/components/schemas/Abonement"
+        "204":
+          description: Абонементы не найдены
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden - Staff access required
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - страницы абонементов доступны только для авторизованных пользователей
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':  
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /user/{userId}/abonements/{abonementId}:
     put:
       tags:
         - Users
-      summary: Update user's abonement
+      summary: Изменить состояние абонемента (заблокировать/разблокировать/иное)
       operationId: updateAbonement
       security:
         - BearerToken: []
@@ -327,20 +335,20 @@ paths:
                 block:
                   type: boolean
       responses:
-        '200':
-          description: Abonement unblocked successfully
+        "200":
+          description: Абонемент успешно обновлен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Abonement'
-        '401':
+                $ref: "#/components/schemas/Abonement"
+        "401":
           description: Unauthorized
-        '403':
-          description: Forbidden - Staff access required
+        "403":
+          description: Forbidden - доступно только для администраторов
     get:
       tags:
         - Users
-      summary: Get user's abonement by ID
+      summary: Получить информацию об абонементе пользователя по ID
       operationId: getAbonementById
       security:
         - BearerToken: []
@@ -350,38 +358,38 @@ paths:
           required: true
           schema:
             type: string
-          description: Unique identifier for the user
+          description: Идентификатор пользователя
         - name: abonementId
           in: path
           required: true
           schema:
             type: string
-          description: Unique identifier for the abonement
+          description: Идентификатор абонемента
       responses:
-        '200':
-          description: User's abonement details retrieved successfully
+        "200":
+          description: Абонемент успешно получен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Abonement'
-        '401':
+                $ref: "#/components/schemas/Abonement"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Abonement not found
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Абонемент не найден
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   # Полученные пользователем книги
   /users/{userId}/loans:
     get:
       tags:
         - Users
-      summary: Get current user's book loans
+      summary: Получить список книг, выданных пользователю
       operationId: getMyLoans
       security:
         - BearerToken: []
@@ -394,27 +402,26 @@ paths:
             enum: [ACTIVE, RETURNED, OVERDUE, LOST, RENEWED]
           description: Filter by loan status
       responses:
-        '200':
-          description: List of user's loans
+        "200":
+          description: Список книг, выданных пользователю
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/BookLoan'
-        '401':
+                  $ref: "#/components/schemas/BookLoan"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   /users/{userId}/checkouts:
     get:
       tags:
         - Users
-      summary: Get user's checkout loans (Staff only)
+      summary: Получить сроки сдачи книг, выданных пользователю
       operationId: getUsercheckoutsLoans
-      description: User ID to check for checkouts loans
       security:
         - BearerToken: []
       parameters:
@@ -429,40 +436,40 @@ paths:
           schema:
             type: string
             enum: [ACTIVE, RETURNED, OVERDUE, LOST, RENEWED]
-          description: Filter by loan status
+          description: Фильтр по статусу сроков сдачи книг
       responses:
-        '200':
-          description: List of user's checkouts loans
+        "200":
+          description: Список сроков сдачи книг, выданных пользователю
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/CheckoutLoan'
-        '401':
+                  $ref: "#/components/schemas/CheckoutLoan"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden - Staff access required
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - доступно только для авторизованных пользователей
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: User not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
   #Loans endpoint for staff
   /reservations:
     get:
       tags:
         - BookingService
-      summary: Get all book reservations (Staff only)
+      summary: Получить все бронирования книг (Staff only)
       operationId: getAllReservations
       security:
         - BearerToken: []
@@ -473,49 +480,49 @@ paths:
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
+          description: Номер страницы для пагинации
         - name: size
           in: query
           required: false
           schema:
             type: integer
             default: 10
-          description: Number of reservations per page for pagination
+          description: Количество книг на странице для пагинации
         - name: userId
           in: query
           required: false
           schema:
             type: string
-          description: Filter reservations by user ID
+          description: Фильтр для поиска бронирований по ID пользователя
       responses:
-        '200':
-          description: A list of book reservations
+        "200":
+          description: Список бронирований книг успешно получен
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Reservation'
-        '204':
-          description: No reservations found
-        '400':
+                  $ref: "#/components/schemas/Reservation"
+        "204":
+          description: Бронирования не найдены
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden - Staff access required
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - просмотр бронирований доступен только для авторизованных пользователей
     post:
       tags:
         - BookingService
-      summary: Create a new book reservation
+      summary: Создать новое бронирование книги
       operationId: createReservation
       security:
         - BearerToken: []
@@ -528,41 +535,38 @@ paths:
               properties:
                 userId:
                   type: string
-                  description: User making the reservation
+                  description: Пользователь, который делает бронирование
                 bookId:
                   type: string
-                  description: Book being reserved
-                priority:
-                  type: integer
-                  description: Priority level for the reservation (optional)
+                  description: Книга, которую нужно забронировать
                 isOverbooking:
                   type: boolean
-                  description: If true, allows overbooking of the book (optional)
+                  description: Если true, бронирование будет выполнено с учетом возможности overbooking'a
               required:
                 - userId
                 - bookId
       responses:
-        '201':
-          description: Reservation created successfully
+        "201":
+          description: Бронирование успешно создано
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Reservation'
-        '400':
-          description: Bad request - book unavailable, user limit exceeded, etc.
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Bad request - книга недоступна, пользователь заблокирован, и т.д.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
-        '403':
-          description: Forbidden - Staff access required
+        "403":
+          description: Forbidden - недостаточно прав для создания бронирования
   /loans:
     get:
       tags:
         - BookingService
-      summary: Get all book loans (Staff only)
+      summary: Получить все выданные книги (Staff only)
       operationId: getAllLoans
       security:
         - BearerToken: []
@@ -573,44 +577,44 @@ paths:
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
+          description: Номер страницы для пагинации
         - name: size
           in: query
           required: false
           schema:
             type: integer
             default: 10
-          description: Number of loans per page for pagination
+          description: Количество книг на странице для пагинации
         - name: userId
           in: query
           required: false
           schema:
             type: string
-          description: Filter loans by user ID
+          description: Фильтр для поиска выданных книг по ID пользователя
       responses:
-        '200':
-          description: A list of book loans
+        "200":
+          description: Список выданных книг успешно получен
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/BookLoan'
-        '204':
-          description: No loans found
-        '400':
+                  $ref: "#/components/schemas/BookLoan"
+        "204":
+          description: Список выданных книг пуст
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
           description: Forbidden - Staff access required
     post:
       tags:
@@ -642,38 +646,38 @@ paths:
                   description: Book being issued
                 reservationId:
                   type: string
-                  description: Optional - reservation being fulfilled
+                  description: Идентификатор бронирования, если книга была забронирована
                 dueDays:
                   type: integer
-                  description: Number of days until due (optional, uses default if not provided)
+                  description: Количество дней, на которые выдается книга (по умолчанию хранится в конфигурации)
               required:
                 - userId
                 - bookId
                 - reservationId
       responses:
-        '201':
-          description: Book issued successfully
+        "201":
+          description: Книга успешно выдана
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookLoan'
-        '400':
-          description: Bad request - user blocked, book unavailable, etc.
+                $ref: "#/components/schemas/BookLoan"
+        "400":
+          description: Bad request - книга недоступна, пользователь заблокирован, и т.д.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
-        '403':
-          description: Forbidden - Staff access required
-        '409':
-          description: Conflict - abonement expiring soon warning
+        "403":
+          description: Forbidden - недостаточно прав для выдачи книги
+        "409":
+          description: Conflict - абонемент пользователя скоро истечет
           content:
             application/json:
               schema:
                 allOf:
-                  - $ref: '#/components/schemas/ErrorResponse'
+                  - $ref: "#/components/schemas/ErrorResponse"
                   - type: object
                     properties:
                       warning:
@@ -696,71 +700,71 @@ paths:
           required: false
           schema:
             type: integer
-            description: Filter loans that are overdue by this many days
+            description: Количество дней просрочки, после которых книга считается просроченной
         - name: filter
           in: query
           required: false
           schema:
             type: string
             default: userId
-          description: Facet filter for loans by parameter
+          description: Фильтр для поиска просроченных книг по параметру
         - name: page
           in: query
           required: false
           schema:
             type: integer
             default: 1
-          description: Page number for pagination
+          description: Номер страницы для пагинации
         - name: size
           in: query
           required: false
           schema:
             type: integer
             default: 10
-          description: Number of loans per page for pagination
+          description: Количество книг на странице для пагинации
         - name: userId
           in: query
           required: false
           schema:
             type: string
-          description: Filter loans by user ID
+          description: Группировка по ID пользователя
         - name: refreshCache
           in: query
           required: false
           schema:
             type: boolean
             default: false
-          description: If true, refresh overdue cache before fetching loans
+          description: Если true, обновляет кэш просроченных книг
       responses:
-        '200':
-          description: A list of book loans
+        "200":
+          description: Список просроченных книг и пользователей успешно получен
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/BookLoan'
-        '204':
-          description: No loans found
-        '400':
+                  $ref: "#/components/schemas/BookLoan"
+        "204":
+          description: Список просроченных книг пуст
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Forbidden - Staff access required
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden - недостаточно прав для доступа к просроченным книгам
   /loans/{loanId}/return:
     post:
       tags:
         - BookingService
-      summary: Process book return
+      summary: Вернуть книгу
       operationId: returnBook
       security:
         - BearerToken: []
@@ -771,26 +775,26 @@ paths:
           schema:
             type: string
       responses:
-        '200':
-          description: Book returned successfully
+        "200":
+          description: Возвращение книги успешно выполнено
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/BookLoan'
-        '401':
+                $ref: "#/components/schemas/BookLoan"
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Staff access required
-        '404':
+        "404":
           description: Loan not found
 
-  # Legacy data import
+  # ImportService data import
   /imports/legacy/abonements:
     post:
       tags:
-        - Legacy
-      summary: Import legacy abonement data from Excel file
-      operationId: importLegacyData
+        - ImportService
+      summary: Импортировать данные абонементов из устаревшего сервиса
+      operationId: importImportServiceData
       security:
         - BearerToken: []
       requestBody:
@@ -803,36 +807,36 @@ paths:
                 file:
                   type: string
                   format: binary
-                  description: Excel file containing legacy abonement data
+                  description: Файл с данными абонементов для импорта
                 dryRun:
                   type: boolean
                   default: false
-                  description: If true, validate data without importing
+                  description: Если true, выполняет проверку данных без внесения изменений
               required:
                 - file
       responses:
-        '200':
-          description: Import completed successfully
+        "200":
+          description: Импорт данных успешно завершен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportResult'
-        '400':
-          description: Invalid file format or data
+                $ref: "#/components/schemas/ImportResult"
+        "400":
+          description: Неверный формат файла или ошибка в данных
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Staff access required
 
   /imports/legacy/{importId}/status:
     get:
       tags:
-        - Legacy
-      summary: Get status of legacy data import
+        - ImportService
+      summary: Получить статус импорта данных
       operationId: getImportStatus
       security:
         - BearerToken: []
@@ -843,25 +847,25 @@ paths:
           schema:
             type: string
       responses:
-        '200':
-          description: Import status
+        "200":
+          description: Статус импорта успешно получен
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImportResult'
-        '401':
+                $ref: "#/components/schemas/ImportResult"
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Staff access required
-        '404':
-          description: Import not found
+        "404":
+          description: Импорт не найден
 
-  # System configuration for overbooking
+  # ConfigurationsService configuration for overbooking
   /configs/books/{bookId}/overbooking:
     put:
       tags:
-        - System
-      summary: Configure overbooking settings for a book
+        - ConfigurationsService
+      summary: Конфигурировать overbooking для книги
       operationId: configureOverbooking
       security:
         - BearerToken: []
@@ -876,26 +880,26 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OverbookingConfig'
+              $ref: "#/components/schemas/OverbookingConfig"
       responses:
-        '200':
-          description: Overbooking configuration updated
+        "200":
+          description: Конфигурация overbooking успешно обновлена
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OverbookingConfig'
-        '401':
+                $ref: "#/components/schemas/OverbookingConfig"
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Admin access required
-        '404':
+        "404":
           description: Book not found
   # Настройка кол-во дней для блокировки абонемента пользователя при просрочке
   /configs/abonement/blockPolicy:
     put:
       tags:
-        - System
-      summary: Configure abonement block policy
+        - ConfigurationsService
+      summary: Конфигурировать политику блокировки абонемента
       operationId: configureAbonementBlockPolicy
       security:
         - BearerToken: []
@@ -912,8 +916,8 @@ paths:
               required:
                 - overdueDaysThreshold
       responses:
-        '200':
-          description: Abonement block policy updated successfully
+        "200":
+          description: Политика блокировки абонемента успешно обновлена
           content:
             application/json:
               schema:
@@ -922,20 +926,20 @@ paths:
                   overdueDaysThreshold:
                     type: integer
                     description: Количество дней просрочки, после которых абонемент будет заблокирован
-        '401':
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Admin access required
     get:
       tags:
-        - System
-      summary: Get current abonement block policy
+        - ConfigurationsService
+      summary: Получить текущую политику блокировки абонемента
       operationId: getAbonementBlockPolicy
       security:
         - BearerToken: []
       responses:
-        '200':
-          description: Abonement block policy retrieved successfully
+        "200":
+          description: Политика блокировки абонемента успешно получена
           content:
             application/json:
               schema:
@@ -944,16 +948,16 @@ paths:
                   overdueDaysThreshold:
                     type: integer
                     description: Количество дней просрочки, после которых абонемент будет заблокирован
-        '401':
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Admin access required
   # Уведомление сотрудников о большой просрочке по даче книг, со стороны пользователя
   /configs/notifications/notificationPolicy:
     put:
       tags:
-        - System
-      summary: Configure notification policy for overdue loans
+        - ConfigurationsService
+      summary: Конфигурировать политику уведомлений о просроченных книгах
       operationId: configureNotificationPolicy
       security:
         - BearerToken: []
@@ -970,7 +974,7 @@ paths:
               required:
                 - overdueDaysThreshold
       responses:
-        '200':
+        "200":
           description: Notification policy updated successfully
           content:
             application/json:
@@ -980,20 +984,20 @@ paths:
                   overdueDaysThreshold:
                     type: integer
                     description: Количество дней просрочки, после которых будет отправлено уведомление сотрудникам
-        '401':
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Admin access required
     get:
       tags:
-        - System
-      summary: Get current notification policy for overdue loans
+        - ConfigurationsService
+      summary: Получить текущую политику уведомлений о просроченных книгах
       operationId: getNotificationPolicy
       security:
         - BearerToken: []
       responses:
-        '200':
-          description: Notification policy retrieved successfully
+        "200":
+          description: Политика уведомлений о просроченных книгах успешно получена
           content:
             application/json:
               schema:
@@ -1002,9 +1006,9 @@ paths:
                   overdueDaysThreshold:
                     type: integer
                     description: Количество дней просрочки, после которых будет отправлено уведомление сотрудникам
-        '401':
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Admin access required
   # Уведомить пользователя о наступлении срока сдачи книги
   # Предупреждение, при выдаче книги пользователю с подходящем к концу сроком действия абонемента
@@ -1012,7 +1016,7 @@ paths:
     post:
       tags:
         - NotificationService
-      summary: Send notification to user
+      summary: Отправить уведомление пользователю или сотруднику
       operationId: sendNotification
       security:
         - BearerToken: []
@@ -1024,7 +1028,14 @@ paths:
               properties:
                 type:
                   type: string
-                  enum: [DUE_DATE_REMINDER, OVERDUE_WARNING, RESERVATION_READY, ABONEMENT_EXPIRING, STAFF_OVERDUE_ALERT, SYSTEM_NOTIFICATION]
+                  enum:
+                    [
+                      DUE_DATE_REMINDER,
+                      OVERDUE_WARNING,
+                      RESERVATION_READY,
+                      ABONEMENT_EXPIRING,
+                      STAFF_OVERDUE_ALERT
+                    ]
                 userId:
                   type: string
                   description: User to notify (optional for staff notifications)
@@ -1044,56 +1055,49 @@ paths:
               required:
                 - type
       responses:
-        '200':
+        "200":
           description: Notification sent successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NotificationResponse'
-        '400':
+                $ref: "#/components/schemas/NotificationResponse"
+        "400":
           description: Bad request
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
           description: User or resource not found
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /users/check-overdue-blocks:
     post:
       tags:
         - Scheduler
-      summary: Check overdue loans and block users if necessary
+      summary: Проверить просроченные выдачи пользователей
       operationId: checkOverdueBlocks
       security:
         - BearerToken: []
       responses:
-        '200':
-          description: Overdue check completed successfully
+        "200":
+          description: Проверка просроченных выдач успешно выполнена
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  processedUsersCount:
-                    type: integer
-                    description: Number of users processed
-                  blockedUsersCount:
-                    type: integer
-                    description: Number of users blocked due to overdue loans
-        '401':
+                $ref: "#/components/schemas/CheckoutLoan"
+        "401":
           description: Unauthorized
-        '403':
+        "403":
           description: Forbidden - Admin access required
 components:
   schemas:
@@ -1132,10 +1136,10 @@ components:
         authors:
           type: array
           items:
-            $ref: '#/components/schemas/Author'
+            $ref: "#/components/schemas/Author"
           description: List of book authors
         publisher:
-          $ref: '#/components/schemas/Publisher'
+          $ref: "#/components/schemas/Publisher"
         totalCopies:
           type: integer
           description: Total number of copies available in the library
@@ -1173,43 +1177,33 @@ components:
         address:
           type: string
 
-    Abonement:
+    CheckoutLoan:
       type: object
       properties:
-        abonementId:
-          type: string
-          description: Unique identifier for the abonement
         userId:
           type: string
-          description: Unique identifier for the user who owns the abonement
+          description: Unique identifier for the user
         username:
           type: string
-          description: Username of the abonement holder
+          description: Username of the user
         fullName:
           type: string
-          description: Full name of the abonement holder
-        status: 
+          description: Full name of the user
+        abonementId:
           type: string
-          enum: [ACTIVE, EXPIRED, BLOCKED, SUSPENDED]
-          description: Current status of the abonement
-        issueDate: 
-          type: string
-          format: date
-          description: Date when the abonement was issued
-        expiryDate: 
-          type: string
-          format: date
-          description: Date when the abonement expires
-        maxBooksAllowed: 
+          description: Identifier of the user's abonement
+        overdueLoans:
+          type: array
+          items:
+            $ref: "#/components/schemas/BookLoan"
+          description: List of overdue loans for the user
+        totalOverdueDays:
           type: integer
-          description: Maximum number of books allowed to be borrowed
-        currentBooksCount:
-          type: integer
-          description: Number of books currently borrowed
-        isExpiringSoon:
-          type: boolean
-          description: True if abonement expires within warning period
-
+          description: Total number of days overdue across all loans
+        totalFineAmount:
+          type: number
+          format: double
+          description: Total fine amount for overdue loans
     Reservation:
       type: object
       properties:
@@ -1220,7 +1214,7 @@ components:
         bookId:
           type: string
         book:
-          $ref: '#/components/schemas/Book'
+          $ref: "#/components/schemas/Book"
         reservationDate:
           type: string
           format: date-time
@@ -1229,7 +1223,15 @@ components:
           format: date-time
         status:
           type: string
-          enum: [PENDING, CONFIRMED, READY_FOR_PICKUP, FULFILLED, EXPIRED, CANCELLED]
+          enum:
+            [
+              PENDING,
+              CONFIRMED,
+              READY_FOR_PICKUP,
+              FULFILLED,
+              EXPIRED,
+              CANCELLED,
+            ]
         priority:
           type: integer
         isOverbooking:
@@ -1245,7 +1247,7 @@ components:
         bookId:
           type: string
         book:
-          $ref: '#/components/schemas/Book'
+          $ref: "#/components/schemas/Book"
         reservationId:
           type: string
         issuedByStaffId:
@@ -1282,19 +1284,19 @@ components:
         fullName:
           type: string
         abonement:
-          $ref: '#/components/schemas/Abonement'
+          $ref: "#/components/schemas/Abonement"
         activeLoans:
           type: array
           items:
-            $ref: '#/components/schemas/BookLoan'
+            $ref: "#/components/schemas/BookLoan"
         activeReservations:
           type: array
           items:
-            $ref: '#/components/schemas/Reservation'
+            $ref: "#/components/schemas/Reservation"
         overdueLoans:
           type: array
           items:
-            $ref: '#/components/schemas/BookLoan'
+            $ref: "#/components/schemas/BookLoan"
         totalFines:
           type: number
           format: double
